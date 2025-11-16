@@ -267,7 +267,7 @@ def tim_kiem_hs():
     clear_input()
 
 # --- (MỚI) HÀM MỞ FORM QUẢN LÝ ĐIỂM SỐ ---
-def mo_form_diem_so_ui():
+def mo_form_diem_so():
     """
     UI: Mở cửa sổ Toplevel để quản lý điểm của học sinh
     """
@@ -324,7 +324,7 @@ def mo_form_diem_so_ui():
         else:
             messagebox.showerror("Lỗi", "Thêm điểm thất bại.", parent=diem_window)
             
-    def xoa_diem_da_chon_ui():
+    def xoa_diem_da_chon():
         """Xóa dòng điểm được chọn trên Bảng điểm"""
         selected_diem = tree_diem.focus()
         if not selected_diem:
@@ -341,7 +341,7 @@ def mo_form_diem_so_ui():
             else:
                  messagebox.showerror("Lỗi", "Xóa điểm thất bại.", parent=diem_window)
 
-    # --- (MỚI) Thiết kế giao diện Form Điểm ---
+    # --- Thiết kế giao diện Form Điểm ---
     
     # Frame Nhập liệu (Giống Form chính)
     form_diem_frame = ttk.Labelframe(diem_window, text="Thêm điểm mới", padding=10)
@@ -416,7 +416,7 @@ def mo_form_diem_so_ui():
     btn_frame_diem = ttk.Frame(diem_window)
     btn_frame_diem.pack(padx=10, pady=10, fill="x")
     
-    btn_xoa_diem = ttk.Button(btn_frame_diem, text="Xóa Dòng Điểm Đã Chọn", command=xoa_diem_da_chon_ui, bootstyle="danger-outline")
+    btn_xoa_diem = ttk.Button(btn_frame_diem, text="Xóa Dòng Điểm Đã Chọn", command=xoa_diem_da_chon, bootstyle="danger-outline")
     btn_xoa_diem.pack(side=tk.LEFT)
     
     btn_dong_diem = ttk.Button(btn_frame_diem, text="Đóng", command=diem_window.destroy, bootstyle="secondary")
@@ -606,7 +606,7 @@ ttk.Button(frame_btn, text="Xóa", width=8, command=xoa_hs, bootstyle="danger").
 frame_diem_btn = ttk.Frame(right_frame)
 frame_diem_btn.pack(pady=10, fill="x")
 ttk.Button(frame_diem_btn, text="Quản lý Điểm (Cho HS đã chọn)", 
-           command=mo_form_diem_so_ui, bootstyle="success-outline").pack(fill="x", padx=10)
+           command=mo_form_diem_so, bootstyle="success-outline").pack(fill="x", padx=10)
 # Button Thoát 
 frame_thoat = ttk.Frame(right_frame)
 frame_thoat.pack(pady=10, fill="x")
