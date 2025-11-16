@@ -22,9 +22,9 @@ def connect_db():
 
 # ====== Các hàm chức năng  ======
 
-
-def tim_kiem_hs(tu_khoa):
+# Hàm tìm kiếm học sinh
     #Có thể tìm kiếm bằng tên hoặc mã học sinh
+def tim_kiem_hs(tu_khoa):
     print(f" Đang tìm kiếm với từ khóa: {tu_khoa}")
     conn = connect_db()
     if conn is None: return []
@@ -49,9 +49,8 @@ def tim_kiem_hs(tu_khoa):
 
 lop_map = {} 
 
+# Hàm tải dữ liệu lớp học vào ComboBox
 def load_lop_hoc_combobox():
-    """Tải dữ liệu 2 cột (ma_lop, ten_lop) vào ComboBox"""
-    print("Đang tải danh sách lớp...")
     global lop_map
     lop_map.clear()
     conn = connect_db()
@@ -70,13 +69,14 @@ def load_lop_hoc_combobox():
     finally:
         conn.close()
 
+# Hàm lấy tên hiển thị từ mã lớp
 def get_display_name_from_ma_lop(ma_lop_can_tim):
-    """Tiện ích: Tìm tên hiển thị từ ma_lop"""
     for display_name, ma_lop in lop_map.items():
         if ma_lop == ma_lop_can_tim:
             return display_name
     return ""
 
+# Hàm xóa trắng các ô nhập liệu
 def clear_input():
     entry_ma_hs.config(state='normal')
     entry_ma_hs.delete(0, tk.END)
@@ -87,6 +87,7 @@ def clear_input():
     if tree.focus():
         tree.selection_remove(tree.focus())
 
+# Hàm nạp dữ liệu vào Treeview
 def _update_treeview(data_list):
     for i in tree.get_children():
         tree.delete(i)
@@ -96,6 +97,7 @@ def _update_treeview(data_list):
             display_values[3] = row[3].strftime('%d/%m/%Y')
         tree.insert("", tk.END, values=display_values, tags=(row[5],))
 
+# Hàm tải dữ liệu học sinh từ CSDL
 def load_data():
     print(" Đang tải dữ liệu học sinh...")
     conn = connect_db()
