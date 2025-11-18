@@ -16,4 +16,4 @@ if __name__ == "__main__":
     # Gọi hàm để mở cửa sổ đăng nhập
     open_form_dang_nhap()
     
-    print("Ứng dụng đã đóng.") 
+    print("Ứng dụng đã đóng.")  

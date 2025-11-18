@@ -912,7 +912,7 @@ def lay_hoc_sinh_va_diem(ma_lop, ma_mon_hoc, hoc_ky, nam_hoc):
                 ds.diem_cuoi_ky,
                 ds.id_diem -- Dùng để biết HS đã có điểm hay chưa (NULL or NOT NULL)
             FROM HocSinh hs
-            LEFT JOIN DiemSo ds ON hs.ma_hoc_sinh = ds.ma_sinh_vien
+            LEFT JOIN DiemSo ds ON hs.ma_hoc_sinh = ds.ma_hoc_sinh
                 AND ds.ma_mon_hoc = %s
                 AND ds.hoc_ky = %s
                 AND ds.nam_hoc = %s
@@ -922,7 +922,7 @@ def lay_hoc_sinh_va_diem(ma_lop, ma_mon_hoc, hoc_ky, nam_hoc):
         cursor.execute(sql_query, (ma_mon_hoc, hoc_ky, nam_hoc, ma_lop))
         results = cursor.fetchall()
         print("[BACK-END LOGIC] Lấy danh sách HS và điểm thành công.")
-        # Ví dụ: [ ('HS001', 'An', 8.0, 9.0, ..., 123), ('HS002', 'Binh', None, None, ..., NULL) ]
+        
         return results
     except Error as e:
         print(f"Lỗi khi lấy HS và điểm: {e}")
@@ -955,7 +955,7 @@ def luu_diem_cho_hoc_sinh(ma_hs, ma_mh, hoc_ky, nam_hoc, d1, d2, d3, d4, d5):
         # Nó yêu cầu 1 RÀNG BUỘC UNIQUE (mà ta đã tạo)
         sql_query = """
             INSERT INTO DiemSo 
-                (ma_sinh_vien, ma_mon_hoc, hoc_ky, nam_hoc, 
+                (ma_hoc_sinh, ma_mon_hoc, hoc_ky, nam_hoc, 
                  diem_15phut_1, diem_15phut_2, diem_1tiet_1, diem_1tiet_2, diem_cuoi_ky)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
