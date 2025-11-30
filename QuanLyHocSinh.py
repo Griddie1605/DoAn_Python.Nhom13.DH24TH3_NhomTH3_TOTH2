@@ -1,9 +1,9 @@
 # 1. Imports
 import tkinter as tk
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
+import ttkbootstrap as ttk # trang trí giao diện
+from ttkbootstrap.constants import * # Trang trí giao diện
 from tkinter import messagebox
-import mysql.connector
+import mysql.connector # Hàm kết nối với My SQL
 from mysql.connector import Error
 import datetime
 
@@ -23,23 +23,23 @@ def connect_db():
 # ====== Các hàm chức năng  ======
 
 
-def tim_kiem_hs(tu_khoa):
+def logic_tim_kiem_hs(tu_khoa):
     #Có thể tìm kiếm bằng tên hoặc mã học sinh
     print(f" Đang tìm kiếm với từ khóa: {tu_khoa}")
     conn = connect_db()
     if conn is None: return []
     cur = conn.cursor()
     try:
-        search_term = f"%{tu_khoa}%"
+        search_term = f"%{tu_khoa}%"  #Ví dụ từ khoá = A. SQL sẽ tìm tất cả những gì chứa chữ %A% (Ví dụ: "An", "Bảo", "Hoa"). Nếu không có dấu %, nó chỉ tìm chính xác chữ "A" thôi.
         sql_query = """
             SELECT hs.ma_hs, hs.ho_ten, hs.gioi_tinh, hs.ngay_sinh, lop.ten_lop, hs.ma_lop 
             FROM HocSinh hs
-            LEFT JOIN LopHoc lop ON hs.ma_lop = lop.ma_lop
+            LEFT JOIN LopHoc lop ON hs.ma_lop = lop.ma_lop 
             WHERE hs.ho_ten LIKE %s OR hs.ma_hs LIKE %s
             ORDER BY hs.ma_hs
         """
-        cur.execute(sql_query, (search_term, search_term))
-        results = cur.fetchall()
+        cur.execute(sql_query, (search_term, search_term)) # Chống lỗi SQL Injection
+        results = cur.fetchall() # lấy tất cả tìm được từ database gán vào biến results.
         return results
     except Error as e:
         messagebox.showerror("Lỗi", f"Lỗi khi tìm kiếm: {e}")
@@ -61,8 +61,11 @@ def load_lop_hoc_combobox():
         cur.execute("SELECT ma_lop, ten_lop FROM LopHoc")
         lop_display_list = []
         for (ma_lop, ten_lop) in cur.fetchall():
+            #Tạo tên hiển thị: Ghép "Lớp 10A1" và "(10A1)" lại
             display_name = f"{ten_lop} ({ma_lop})"
+            #Bỏ vào giỏ để lát nữa hiện lên màn hình
             lop_display_list.append(display_name)
+            #Khi chọn "Lớp 10A1" nghĩa là mã "10A1"
             lop_map[display_name] = ma_lop
         cbb_lop['values'] = lop_display_list
     except Error as e:
@@ -71,7 +74,7 @@ def load_lop_hoc_combobox():
         conn.close()
 
 def get_display_name_from_ma_lop(ma_lop_can_tim):
-    """Tiện ích: Tìm tên hiển thị từ ma_lop"""
+    """Tìm tên hiển thị từ ma_lop"""
     for display_name, ma_lop in lop_map.items():
         if ma_lop == ma_lop_can_tim:
             return display_name
@@ -88,10 +91,11 @@ def clear_input():
         tree.selection_remove(tree.focus())
 
 def _update_treeview(data_list):
+    #Xoá bảng cũ
     for i in tree.get_children():
         tree.delete(i)
     for row in data_list:
-        display_values = list(row[:5])
+        display_values = list(row[:5]) # Lấy 5 cột đầu tiên để hiển thị (Mã, Tên, Giới tính, Ngày sinh, Tên lớp)
         if row[3]: 
             display_values[3] = row[3].strftime('%d/%m/%Y')
         tree.insert("", tk.END, values=display_values, tags=(row[5],))
@@ -257,173 +261,15 @@ def tim_kiem_hs():
         messagebox.showwarning("Thiếu thông tin", "Vui lòng nhập Mã hoặc Tên học sinh để tìm.")
         return
     
-    results = tim_kiem_hs(tu_khoa)
+    results = logic_tim_kiem_hs(tu_khoa)
     if not results:
         messagebox.showinfo("Thông báo", f"Không tìm thấy học sinh nào với từ khóa: {tu_khoa}")
     
     _update_treeview(results)
     clear_input()
 
-# --- HÀM MỞ FORM QUẢN LÝ ĐIỂM SỐ ---
-def mo_form_diem_so_ui():
-    """
-    Mở cửa sổ Toplevel để quản lý điểm của học sinh
-    """
-    print("Nút Quản lý Điểm")
-    selected = tree.focus()
-    if not selected:
-        messagebox.showwarning("Chưa chọn", "Vui lòng chọn một học sinh trên bảng để xem điểm.")
-        return
-        
-    ma_hs = tree.item(selected)["values"][0]
-    ho_ten = tree.item(selected)["values"][1]
-    
-    # --- Tạo cửa sổ mới (Toplevel) ---
-    diem_window = tk.Toplevel(root)
-    diem_window.title(f"Quản lý Điểm - {ho_ten} ({ma_hs})")
-    diem_window.geometry("800x500")
-    diem_window.transient(root) # Luôn ở trên cửa sổ chính
-    diem_window.grab_set() # Khóa tương tác với cửa sổ chính
-    
-    # --- (MỚI) Các hàm nội bộ của Form Điểm ---
-    
-    def load_diem_treeview():
-        """Nạp điểm của HS này vào Bảng điểm"""
-        for i in tree_diem.get_children():
-            tree_diem.delete(i)
-        
-        data = lay_diem_cua_hoc_sinh(ma_hs) # Gọi Back-end
-        for row in data:
-            tree_diem.insert("", tk.END, values=row)
 
-    def them_diem_moi_ui():
-        """Thêm một dòng điểm mới cho học sinh này"""
-        mon_hoc = entry_mon.get()
-        hoc_ky = cbb_hoc_ky.get()
-        nam_hoc = entry_nam_hoc.get()
-        d15p = entry_d15p.get()
-        d1t = entry_d1t.get()
-        dck = entry_dck.get()
-        ghi_chu = entry_ghi_chu.get()
-        
-        if not (mon_hoc and hoc_ky and nam_hoc):
-            messagebox.showwarning("Thiếu thông tin", "Môn, Học kỳ, Năm học là bắt buộc.", parent=diem_window)
-            return
-            
-        if them_diem_moi(ma_hs, mon_hoc, hoc_ky, nam_hoc, d15p, d1t, dck, ghi_chu):
-            messagebox.showinfo("Thành công", "Thêm điểm thành công.", parent=diem_window)
-            load_diem_treeview() # Tải lại bảng điểm
-            # Xóa các ô entry
-            entry_mon.delete(0, tk.END)
-            entry_d15p.delete(0, tk.END)
-            entry_d1t.delete(0, tk.END)
-            entry_dck.delete(0, tk.END)
-            entry_ghi_chu.delete(0, tk.END)
-        else:
-            messagebox.showerror("Lỗi", "Thêm điểm thất bại.", parent=diem_window)
-            
-    def xoa_diem_da_chon_ui():
-        """Xóa dòng điểm được chọn trên Bảng điểm"""
-        selected_diem = tree_diem.focus()
-        if not selected_diem:
-            messagebox.showwarning("Chưa chọn", "Vui lòng chọn dòng điểm để xóa.", parent=diem_window)
-            return
-            
-        # Cột đầu tiên (values[0]) chính là id_diem
-        id_diem = tree_diem.item(selected_diem)["values"][0]
-        
-        if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn xóa dòng điểm (ID: {id_diem}) này không?", parent=diem_window):
-            if xoa_diem(id_diem):
-                messagebox.showinfo("Thành công", "Xóa điểm thành công.", parent=diem_window)
-                load_diem_treeview() # Tải lại bảng
-            else:
-                 messagebox.showerror("Lỗi", "Xóa điểm thất bại.", parent=diem_window)
-
-    # --- (MỚI) Thiết kế giao diện Form Điểm ---
-    
-    # Frame Nhập liệu (Giống Form chính)
-    form_diem_frame = ttk.Labelframe(diem_window, text="Thêm điểm mới", padding=10)
-    form_diem_frame.pack(padx=10, pady=10, fill="x")
-    
-    ttk.Label(form_diem_frame, text="Môn học:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-    entry_mon = ttk.Entry(form_diem_frame)
-    entry_mon.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-    
-    ttk.Label(form_diem_frame, text="Học kỳ:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
-    cbb_hoc_ky = ttk.Combobox(form_diem_frame, values=["1", "2"], state="readonly", width=5)
-    cbb_hoc_ky.grid(row=0, column=3, padx=5, pady=5, sticky="w")
-    cbb_hoc_ky.current(0)
-    
-    ttk.Label(form_diem_frame, text="Năm học:").grid(row=0, column=4, padx=5, pady=5, sticky="w")
-    entry_nam_hoc = ttk.Entry(form_diem_frame, width=10)
-    entry_nam_hoc.grid(row=0, column=5, padx=5, pady=5, sticky="w")
-    entry_nam_hoc.insert(0, "2024-2025") # Gợi ý
-    
-    ttk.Label(form_diem_frame, text="Điểm 15p:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-    entry_d15p = ttk.Entry(form_diem_frame, width=7)
-    entry_d15p.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-    
-    ttk.Label(form_diem_frame, text="Điểm 1 tiết:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
-    entry_d1t = ttk.Entry(form_diem_frame, width=7)
-    entry_d1t.grid(row=1, column=3, padx=5, pady=5, sticky="w")
-    
-    ttk.Label(form_diem_frame, text="Điểm Cuối kỳ:").grid(row=1, column=4, padx=5, pady=5, sticky="w")
-    entry_dck = ttk.Entry(form_diem_frame, width=7)
-    entry_dck.grid(row=1, column=5, padx=5, pady=5, sticky="w")
-    
-    ttk.Label(form_diem_frame, text="Ghi chú:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-    entry_ghi_chu = ttk.Entry(form_diem_frame)
-    entry_ghi_chu.grid(row=2, column=1, columnspan=3, padx=5, pady=5, sticky="ew")
-    
-    btn_them_diem = ttk.Button(form_diem_frame, text="Thêm Điểm", command=them_diem_moi_ui, bootstyle="success")
-    btn_them_diem.grid(row=2, column=4, columnspan=2, padx=5, pady=5, sticky="e")
-    
-    form_diem_frame.columnconfigure(1, weight=1)
-    
-    # Frame Bảng điểm
-    tree_diem_frame = ttk.Labelframe(diem_window, text=f"Bảng điểm của {ho_ten}", padding=10)
-    tree_diem_frame.pack(padx=10, pady=5, fill="both", expand=True)
-    
-    diem_cols = ("id", "mon_hoc", "hoc_ky", "nam_hoc", "d15p", "d1t", "dck", "ghi_chu")
-    tree_diem = ttk.Treeview(tree_diem_frame, columns=diem_cols, show="headings", height=5)
-    
-    tree_diem.heading("id", text="ID")
-    tree_diem.heading("mon_hoc", text="Môn học")
-    tree_diem.heading("hoc_ky", text="Học kỳ")
-    tree_diem.heading("nam_hoc", text="Năm học")
-    tree_diem.heading("d15p", text="15p")
-    tree_diem.heading("d1t", text="1 Tiết")
-    tree_diem.heading("dck", text="Cuối kỳ")
-    tree_diem.heading("ghi_chu", text="Ghi chú")
-    
-    tree_diem.column("id", width=40, anchor="center")
-    tree_diem.column("mon_hoc", width=100)
-    tree_diem.column("hoc_ky", width=50, anchor="center")
-    tree_diem.column("nam_hoc", width=80, anchor="center")
-    tree_diem.column("d15p", width=50, anchor="center")
-    tree_diem.column("d1t", width=50, anchor="center")
-    tree_diem.column("dck", width=50, anchor="center")
-    tree_diem.column("ghi_chu", width=150)
-    
-    diem_scrollbar = ttk.Scrollbar(tree_diem_frame, orient=tk.VERTICAL, command=tree_diem.yview)
-    tree_diem.configure(yscroll=diem_scrollbar.set)
-    diem_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    tree_diem.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    
-    # Nút Xóa và Đóng
-    btn_frame_diem = ttk.Frame(diem_window)
-    btn_frame_diem.pack(padx=10, pady=10, fill="x")
-    
-    btn_xoa_diem = ttk.Button(btn_frame_diem, text="Xóa Dòng Điểm Đã Chọn", command=xoa_diem_da_chon_ui, bootstyle="danger-outline")
-    btn_xoa_diem.pack(side=tk.LEFT)
-    
-    btn_dong_diem = ttk.Button(btn_frame_diem, text="Đóng", command=diem_window.destroy, bootstyle="secondary")
-    btn_dong_diem.pack(side=tk.RIGHT)
-    
-    # Tải dữ liệu ban đầu cho Form Điểm
-    load_diem_treeview()
-    
-# ====== Quản lý điểm số ======
+# ====== Quản lý điểm số (Form Quản Lý Điểm Số)======
 #Hàm lấy điểm của học sinh
 def lay_diem_cua_hoc_sinh(ma_hs):
     conn = connect_db()
@@ -486,6 +332,167 @@ def xoa_diem(id_diem):
         return False
     finally:
         conn.close()
+        
+        
+# --- HÀM MỞ FORM QUẢN LÝ ĐIỂM SỐ ---
+def mo_form_diem_so_ui():
+    """
+    Mở cửa sổ Toplevel để quản lý điểm của học sinh
+    """
+    print("Nút Quản lý Điểm")
+    selected = tree.focus()
+    if not selected:
+        messagebox.showwarning("Chưa chọn", "Vui lòng chọn một học sinh trên bảng để xem điểm.")
+        return
+        
+    ma_hs = tree.item(selected)["values"][0]
+    ho_ten = tree.item(selected)["values"][1]
+    
+    # --- Tạo cửa sổ mới (Toplevel) ---
+    diem_window = tk.Toplevel(root)
+    diem_window.title(f"Quản lý Điểm - {ho_ten} ({ma_hs})")
+    diem_window.geometry("800x500")
+    diem_window.transient(root) # Luôn ở trên cửa sổ chính
+    diem_window.grab_set() # Khóa tương tác với cửa sổ chính
+    
+    
+    # ---Các hàm nội bộ của Form Điểm ---
+    def load_diem_treeview():
+        """Nạp điểm của HS này vào Bảng điểm"""
+        for i in tree_diem.get_children():
+            tree_diem.delete(i)  # Xoá bảng cũ
+        
+        data = lay_diem_cua_hoc_sinh(ma_hs) # Gọi Back-end
+        for row in data:
+            tree_diem.insert("", tk.END, values=row)
+
+    def them_diem_moi_ui():
+        """Thêm một dòng điểm mới cho học sinh này"""
+        mon_hoc = entry_mon.get()
+        hoc_ky = cbb_hoc_ky.get()
+        nam_hoc = entry_nam_hoc.get()
+        d15p = entry_d15p.get()
+        d1t = entry_d1t.get()
+        dck = entry_dck.get()
+        ghi_chu = entry_ghi_chu.get()
+        
+        if not (mon_hoc and hoc_ky and nam_hoc):
+            messagebox.showwarning("Thiếu thông tin", "Môn, Học kỳ, Năm học là bắt buộc.", parent=diem_window)
+            return
+            
+        if them_diem_moi(ma_hs, mon_hoc, hoc_ky, nam_hoc, d15p, d1t, dck, ghi_chu):
+            messagebox.showinfo("Thành công", "Thêm điểm thành công.", parent=diem_window)
+            load_diem_treeview() # Tải lại bảng điểm
+            # Xóa các ô entry
+            entry_mon.delete(0, tk.END)
+            entry_d15p.delete(0, tk.END)
+            entry_d1t.delete(0, tk.END)
+            entry_dck.delete(0, tk.END)
+            entry_ghi_chu.delete(0, tk.END)
+        else:
+            messagebox.showerror("Lỗi", "Thêm điểm thất bại.", parent=diem_window)
+            
+    def xoa_diem_da_chon_ui():
+        """Xóa dòng điểm được chọn trên Bảng điểm"""
+        selected_diem = tree_diem.focus()
+        if not selected_diem:
+            messagebox.showwarning("Chưa chọn", "Vui lòng chọn dòng điểm để xóa.", parent=diem_window)
+            return
+            
+        # Cột đầu tiên (values[0]) chính là id_diem
+        id_diem = tree_diem.item(selected_diem)["values"][0]
+        
+        if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn xóa dòng điểm (ID: {id_diem}) này không?", parent=diem_window):
+            if xoa_diem(id_diem):
+                messagebox.showinfo("Thành công", "Xóa điểm thành công.", parent=diem_window)
+                load_diem_treeview() # Tải lại bảng
+            else:
+                 messagebox.showerror("Lỗi", "Xóa điểm thất bại.", parent=diem_window)
+
+    # ---Thiết kế giao diện Form Điểm ---
+    
+    # Frame Nhập liệu (Giống Form chính)
+    form_diem_frame = ttk.Labelframe(diem_window, text="Thêm điểm mới", padding=10)
+    form_diem_frame.pack(padx=10, pady=10, fill="x")
+    
+    ttk.Label(form_diem_frame, text="Môn học:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    entry_mon = ttk.Entry(form_diem_frame)
+    entry_mon.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+    
+    ttk.Label(form_diem_frame, text="Học kỳ:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
+    cbb_hoc_ky = ttk.Combobox(form_diem_frame, values=["1", "2"], state="readonly", width=5)
+    cbb_hoc_ky.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+    cbb_hoc_ky.current(0)
+    
+    ttk.Label(form_diem_frame, text="Năm học:").grid(row=0, column=4, padx=5, pady=5, sticky="w")
+    entry_nam_hoc = ttk.Entry(form_diem_frame, width=10)
+    entry_nam_hoc.grid(row=0, column=5, padx=5, pady=5, sticky="w")
+    entry_nam_hoc.insert(0, "2024-2025") # Gợi ý
+    
+    ttk.Label(form_diem_frame, text="Điểm 15p:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+    entry_d15p = ttk.Entry(form_diem_frame, width=7)
+    entry_d15p.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+    
+    ttk.Label(form_diem_frame, text="Điểm 1 tiết:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
+    entry_d1t = ttk.Entry(form_diem_frame, width=7)
+    entry_d1t.grid(row=1, column=3, padx=5, pady=5, sticky="w")
+    
+    ttk.Label(form_diem_frame, text="Điểm Cuối kỳ:").grid(row=1, column=4, padx=5, pady=5, sticky="w")
+    entry_dck = ttk.Entry(form_diem_frame, width=7)
+    entry_dck.grid(row=1, column=5, padx=5, pady=5, sticky="w")
+    
+    ttk.Label(form_diem_frame, text="Ghi chú:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+    entry_ghi_chu = ttk.Entry(form_diem_frame)
+    entry_ghi_chu.grid(row=2, column=1, columnspan=3, padx=5, pady=5, sticky="ew")
+    
+    btn_them_diem = ttk.Button(form_diem_frame, text="Thêm Điểm", command=them_diem_moi_ui, bootstyle="success")
+    btn_them_diem.grid(row=2, column=4, columnspan=2, padx=5, pady=5, sticky="e")
+    
+    form_diem_frame.columnconfigure(1, weight=1) # Lệnh kéo dãn ô Môn Học
+    
+    # Frame Bảng điểm
+    tree_diem_frame = ttk.Labelframe(diem_window, text=f"Bảng điểm của {ho_ten}", padding=10)
+    tree_diem_frame.pack(padx=10, pady=5, fill="both", expand=True)
+    
+    diem_cols = ("id", "mon_hoc", "hoc_ky", "nam_hoc", "d15p", "d1t", "dck", "ghi_chu")
+    tree_diem = ttk.Treeview(tree_diem_frame, columns=diem_cols, show="headings", height=5)
+    
+    tree_diem.heading("id", text="ID")
+    tree_diem.heading("mon_hoc", text="Môn học")
+    tree_diem.heading("hoc_ky", text="Học kỳ")
+    tree_diem.heading("nam_hoc", text="Năm học")
+    tree_diem.heading("d15p", text="15p")
+    tree_diem.heading("d1t", text="1 Tiết")
+    tree_diem.heading("dck", text="Cuối kỳ")
+    tree_diem.heading("ghi_chu", text="Ghi chú")
+    
+    tree_diem.column("id", width=40, anchor="center")
+    tree_diem.column("mon_hoc", width=100)
+    tree_diem.column("hoc_ky", width=50, anchor="center")
+    tree_diem.column("nam_hoc", width=80, anchor="center")
+    tree_diem.column("d15p", width=50, anchor="center")
+    tree_diem.column("d1t", width=50, anchor="center")
+    tree_diem.column("dck", width=50, anchor="center")
+    tree_diem.column("ghi_chu", width=150)
+    
+    diem_scrollbar = ttk.Scrollbar(tree_diem_frame, orient=tk.VERTICAL, command=tree_diem.yview)
+    tree_diem.configure(yscroll=diem_scrollbar.set)
+    diem_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    tree_diem.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    
+    # Nút Xóa và Đóng
+    btn_frame_diem = ttk.Frame(diem_window)
+    btn_frame_diem.pack(padx=10, pady=10, fill="x")
+    
+    btn_xoa_diem = ttk.Button(btn_frame_diem, text="Xóa Dòng Điểm Đã Chọn", command=xoa_diem_da_chon_ui, bootstyle="danger-outline")
+    btn_xoa_diem.pack(side=tk.LEFT)
+    
+    btn_dong_diem = ttk.Button(btn_frame_diem, text="Đóng", command=diem_window.destroy, bootstyle="secondary")
+    btn_dong_diem.pack(side=tk.RIGHT)
+    
+    # Tải dữ liệu ban đầu cho Form Điểm
+    load_diem_treeview()
+
 
 # ====== 4. Cửa sổ chính ======
 root = ttk.Window(themename="litera") 
