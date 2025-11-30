@@ -264,12 +264,12 @@ def tim_kiem_hs():
     _update_treeview(results)
     clear_input()
 
-# --- (MỚI) HÀM MỞ FORM QUẢN LÝ ĐIỂM SỐ ---
+# --- HÀM MỞ FORM QUẢN LÝ ĐIỂM SỐ ---
 def mo_form_diem_so_ui():
     """
-    UI: Mở cửa sổ Toplevel để quản lý điểm của học sinh
+    Mở cửa sổ Toplevel để quản lý điểm của học sinh
     """
-    print("UI: Nút Quản lý Điểm")
+    print("Nút Quản lý Điểm")
     selected = tree.focus()
     if not selected:
         messagebox.showwarning("Chưa chọn", "Vui lòng chọn một học sinh trên bảng để xem điểm.")
