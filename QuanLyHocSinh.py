@@ -1,11 +1,13 @@
 # 1. Imports
 import tkinter as tk
+from tkinter import filedialog # Import hộp thoại lưu file
 import ttkbootstrap as ttk # trang trí giao diện
 from ttkbootstrap.constants import * # Trang trí giao diện
 from tkinter import messagebox
 import mysql.connector # Hàm kết nối với My SQL
 from mysql.connector import Error
 import datetime
+import pandas as pd # Thư viện để xuất Excel
 
 # ====== Kết nối MySQL ======
 def connect_db():
@@ -13,7 +15,7 @@ def connect_db():
         return mysql.connector.connect(
             host="localhost",
             user="root",
-            password="Grid0378095005", 
+            password="Grid0378095005", # Thay password của bạn
             database="QuanLyHocSinh" 
         )
     except Error as e:
@@ -22,7 +24,6 @@ def connect_db():
 
 # ====== Các hàm chức năng  ======
 
-
 def logic_tim_kiem_hs(tu_khoa):
     #Có thể tìm kiếm bằng tên hoặc mã học sinh
     print(f" Đang tìm kiếm với từ khóa: {tu_khoa}")
@@ -30,7 +31,7 @@ def logic_tim_kiem_hs(tu_khoa):
     if conn is None: return []
     cur = conn.cursor()
     try:
-        search_term = f"%{tu_khoa}%"  #Ví dụ từ khoá = A. SQL sẽ tìm tất cả những gì chứa chữ %A% (Ví dụ: "An", "Bảo", "Hoa"). Nếu không có dấu %, nó chỉ tìm chính xác chữ "A" thôi.
+        search_term = f"%{tu_khoa}%"
         sql_query = """
             SELECT hs.ma_hs, hs.ho_ten, hs.gioi_tinh, hs.ngay_sinh, lop.ten_lop, hs.ma_lop 
             FROM HocSinh hs
@@ -61,11 +62,8 @@ def load_lop_hoc_combobox():
         cur.execute("SELECT ma_lop, ten_lop FROM LopHoc")
         lop_display_list = []
         for (ma_lop, ten_lop) in cur.fetchall():
-            #Tạo tên hiển thị: Ghép "Lớp 10A1" và "(10A1)" lại
             display_name = f"{ten_lop} ({ma_lop})"
-            #Bỏ vào giỏ để lát nữa hiện lên màn hình
             lop_display_list.append(display_name)
-            #Khi chọn "Lớp 10A1" nghĩa là mã "10A1"
             lop_map[display_name] = ma_lop
         cbb_lop['values'] = lop_display_list
     except Error as e:
@@ -278,7 +276,7 @@ def lay_diem_cua_hoc_sinh(ma_hs):
     try:
         # Lấy các cột tương ứng với bảng DiemSo
         sql_query = """
-            SELECT id_diem, mon_hoc, hoc_ky, nam_hoc, diem_15p, diem_1tiet, diem_cuoi_ky, ghi_chu 
+            SELECT id_diem, mon_hoc, hoc_ky, nam_hoc, diem_15p, diem_1tiet, diem_cuoi_ky, ghi_chu, diem_tb 
             FROM DiemSo 
             WHERE ma_hs = %s
             ORDER BY nam_hoc, hoc_ky, mon_hoc
@@ -303,11 +301,19 @@ def them_diem_moi(ma_hs, mon_hoc, hoc_ky, nam_hoc, d15p, d1t, dck, ghi_chu):
         d1t = d1t if d1t else None
         dck = dck if dck else None
         
+        def tinh_tb(d15p, d1t, dck):
+            d15p = float(d15p) if d15p else 0
+            d1t = float(d1t) if d1t else 0
+            dck = float(dck) if dck else 0
+            return round((d15p + d1t*2 + dck*3)/6,2)
+            
+        diem_tb = tinh_tb(d15p, d1t, dck)
+        
         sql_query = """
-            INSERT INTO DiemSo (ma_hs, mon_hoc, hoc_ky, nam_hoc, diem_15p, diem_1tiet, diem_cuoi_ky, ghi_chu)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO DiemSo (ma_hs, mon_hoc, hoc_ky, nam_hoc, diem_15p, diem_1tiet, diem_cuoi_ky, ghi_chu,diem_tb)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-        cur.execute(sql_query, (ma_hs, mon_hoc, hoc_ky, nam_hoc, d15p, d1t, dck, ghi_chu))
+        cur.execute(sql_query, (ma_hs, mon_hoc, hoc_ky, nam_hoc, d15p, d1t, dck, ghi_chu,diem_tb))
         conn.commit()
         return True
     except Error as e:
@@ -352,6 +358,7 @@ def mo_form_diem_so_ui():
     diem_window = tk.Toplevel(root)
     diem_window.title(f"Quản lý Điểm - {ho_ten} ({ma_hs})")
     diem_window.geometry("800x500")
+    center_window(diem_window, 800, 500)
     diem_window.transient(root) # Luôn ở trên cửa sổ chính
     diem_window.grab_set() # Khóa tương tác với cửa sổ chính
     
@@ -363,8 +370,23 @@ def mo_form_diem_so_ui():
             tree_diem.delete(i)  # Xoá bảng cũ
         
         data = lay_diem_cua_hoc_sinh(ma_hs) # Gọi Back-end
+        # data trả về: (id, mon, hk, nam, d15, d1t, dck, ghi_chu, diem_tb)
+        
         for row in data:
-            tree_diem.insert("", tk.END, values=row)
+            row_list = list(row) # chuyen thanh list 
+            
+            # Kiểm tra nếu DB chưa có ĐTB (None) thì tính toán lại để hiển thị
+            if row_list[8] is None: 
+                d15p = row_list[4] or 0
+                d1t = row_list[5] or 0
+                dck = row_list[6] or 0
+                dtb = round((d15p + d1t*2 + dck*3)/6, 2)
+                row_list[8] = dtb
+            
+            # Insert vào treeview. 
+            # Thứ tự columns: id, mon, hk, nam, d15p, d1t, dck, ghi_chu, diem_tb
+            # row_list đã đúng thứ tự từ câu SQL SELECT
+            tree_diem.insert("", tk.END, values=row_list)
 
     def them_diem_moi_ui():
         """Thêm một dòng điểm mới cho học sinh này"""
@@ -408,6 +430,45 @@ def mo_form_diem_so_ui():
                 load_diem_treeview() # Tải lại bảng
             else:
                  messagebox.showerror("Lỗi", "Xóa điểm thất bại.", parent=diem_window)
+
+    def xuat_excel_ui():
+        """Xuất dữ liệu điểm ra file Excel"""
+        # 1. Lấy dữ liệu từ DB
+        data_diem = lay_diem_cua_hoc_sinh(ma_hs)
+        if not data_diem:
+            messagebox.showwarning("Trống", "Học sinh này chưa có điểm để xuất.", parent=diem_window)
+            return
+            
+        # 2. Xử lý dữ liệu để tính ĐTB nếu trong DB là None
+        processed_data = []
+        for row in data_diem:
+            row_list = list(row)
+            if row_list[8] is None: # Cột diem_tb
+                d15p = row_list[4] or 0
+                d1t = row_list[5] or 0
+                dck = row_list[6] or 0
+                row_list[8] = round((d15p + d1t*2 + dck*3)/6, 2)
+            processed_data.append(row_list)
+            
+        # 3. Tạo DataFrame 
+        cols = ["ID", "Môn Học", "Học Kỳ", "Năm Học", "15 Phút", "1 Tiết", "Cuối Kỳ", "Ghi Chú", "Điểm TB"]
+        df = pd.DataFrame(processed_data, columns=cols)
+        
+        # 4. Mở hộp thoại chọn nơi lưu file
+        file_path = filedialog.asksaveasfilename(
+            parent=diem_window,
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            initialfile=f"BangDiem_{ma_hs}_{ho_ten}.xlsx"
+        )
+        
+        if file_path:
+            try:
+                # Xuất ra Excel, bỏ cột index
+                df.to_excel(file_path, index=False)
+                messagebox.showinfo("Thành công", f"Đã xuất file thành công tại:\n{file_path}", parent=diem_window)
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Lỗi khi ghi file Excel:\n{e}", parent=diem_window)
 
     # ---Thiết kế giao diện Form Điểm ---
     
@@ -454,7 +515,7 @@ def mo_form_diem_so_ui():
     tree_diem_frame = ttk.Labelframe(diem_window, text=f"Bảng điểm của {ho_ten}", padding=10)
     tree_diem_frame.pack(padx=10, pady=5, fill="both", expand=True)
     
-    diem_cols = ("id", "mon_hoc", "hoc_ky", "nam_hoc", "d15p", "d1t", "dck", "ghi_chu")
+    diem_cols = ("id", "mon_hoc", "hoc_ky", "nam_hoc", "d15p", "d1t", "dck", "ghi_chu","diem_tb")
     tree_diem = ttk.Treeview(tree_diem_frame, columns=diem_cols, show="headings", height=5)
     
     tree_diem.heading("id", text="ID")
@@ -465,6 +526,7 @@ def mo_form_diem_so_ui():
     tree_diem.heading("d1t", text="1 Tiết")
     tree_diem.heading("dck", text="Cuối kỳ")
     tree_diem.heading("ghi_chu", text="Ghi chú")
+    tree_diem.heading("diem_tb", text="Điểm TB")
     
     tree_diem.column("id", width=40, anchor="center")
     tree_diem.column("mon_hoc", width=100)
@@ -474,6 +536,7 @@ def mo_form_diem_so_ui():
     tree_diem.column("d1t", width=50, anchor="center")
     tree_diem.column("dck", width=50, anchor="center")
     tree_diem.column("ghi_chu", width=150)
+    tree_diem.column("diem_tb", width=50, anchor="center")
     
     diem_scrollbar = ttk.Scrollbar(tree_diem_frame, orient=tk.VERTICAL, command=tree_diem.yview)
     tree_diem.configure(yscroll=diem_scrollbar.set)
@@ -487,18 +550,32 @@ def mo_form_diem_so_ui():
     btn_xoa_diem = ttk.Button(btn_frame_diem, text="Xóa Dòng Điểm Đã Chọn", command=xoa_diem_da_chon_ui, bootstyle="danger-outline")
     btn_xoa_diem.pack(side=tk.LEFT)
     
+    # === NÚT XUẤT EXCEL ===
+    btn_xuat_excel = ttk.Button(btn_frame_diem, text="Xuất Excel", command=xuat_excel_ui, bootstyle="success-outline")
+    btn_xuat_excel.pack(side=tk.LEFT, padx=10)
+    
     btn_dong_diem = ttk.Button(btn_frame_diem, text="Đóng", command=diem_window.destroy, bootstyle="secondary")
     btn_dong_diem.pack(side=tk.RIGHT)
     
     # Tải dữ liệu ban đầu cho Form Điểm
     load_diem_treeview()
 
-
+#Ham cang giua
+def center_window(window, width, height):
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    x = (screen_width - width) // 2
+    y = (screen_height - height) // 2
+    window.geometry(f"{width}x{height}+{x}+{y}")
+    
+    
 # ====== 4. Cửa sổ chính ======
 root = ttk.Window(themename="litera") 
 root.title("Quản lý Học sinh")
 root.geometry("1000x550") 
+center_window(root, 1000, 550)   
 root.resizable(False, False)
+
 
 root.columnconfigure(0, weight=6) 
 root.columnconfigure(1, weight=4)
